@@ -9,7 +9,7 @@ import Cocoa
 
 final class PermissionStore: ObservableObject {
     
-    @Published var isTrusted: Bool = AXIsProcessTrusted()
+    @Published var isTrusted = AXIsProcessTrusted()
     
     private var pollingTask: Task<Void, Never>?
     

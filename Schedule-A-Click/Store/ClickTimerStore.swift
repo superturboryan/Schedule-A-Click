@@ -14,8 +14,8 @@ enum TimerMode: String, CaseIterable {
 
 final class ClickTimerStore: ObservableObject {
 
-    @Published var isRunning: Bool = false
-    @Published var timeRemaining: Int = 0
+    @Published var isRunning = false
+    @Published var timeRemaining = 0
 
     private var timer: Timer?
     private var targetDate: Date?
