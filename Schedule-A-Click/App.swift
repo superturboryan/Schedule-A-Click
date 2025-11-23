@@ -45,9 +45,15 @@ struct Schedule_A_ClickApp: App {
                     .resizable()
                     .scaledToFit()
             }
-            
+
             if clickTimerStore.isRunning && settingsStore.showTimeInMenuBar {
-                Text("\(clickTimerStore.formattedTimeRemaining)")
+                if settingsStore.timerMode == .schedule {
+                    // Show scheduled time in schedule mode
+                    Text(clickTimerStore.formattedScheduledTime(use12Hour: settingsStore.use12HourFormat))
+                } else {
+                    // Show countdown in countdown mode
+                    Text(clickTimerStore.formattedTimeRemaining)
+                }
             }
         }
     }

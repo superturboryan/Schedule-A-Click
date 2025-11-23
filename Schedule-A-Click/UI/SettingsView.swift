@@ -12,8 +12,9 @@ import SwiftUI
 struct SettingsView: View {
     
     @EnvironmentObject var store: SettingsStore
-    
+
     @State var closeButtonHover = false
+    @State var selectedClickType: ClickType = .left // Local state for picker
     @Binding var isPresented: Bool
     
     var body: some View {
@@ -37,17 +38,7 @@ struct SettingsView: View {
 
             Divider()
 
-            VStack(spacing: 8) {
-                Text("Click Type")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Picker("Click Type", selection: store.$clickType) {
-                    ForEach(ClickType.allCases, id: \.self) { type in
-                        Text(type.rawValue).tag(type)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
+            clickTypePicker
 
             Divider()
 
@@ -87,10 +78,32 @@ struct SettingsView: View {
         }
     }
     
+    @ViewBuilder var clickTypePicker: some View {
+        VStack(spacing: 8) {
+            Text("Click Type")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            Picker("Click Type", selection: $selectedClickType) {
+                ForEach(ClickType.allCases, id: \.self) { type in
+                    Text(type.rawValue).tag(type)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onAppear {
+                selectedClickType = store.clickType
+            }
+            .onChange(of: selectedClickType) { _, newValue in
+                store.clickType = newValue
+            }
+        }
+    }
+    
     var closeButton: some View {
         HStack {
             Button {
-                isPresented.toggle()
+                withAnimation {
+                    isPresented.toggle()
+                }
             } label: {
                 Image(systemName: closeButtonHover ? "x.circle.fill" : "circle.fill")
             }

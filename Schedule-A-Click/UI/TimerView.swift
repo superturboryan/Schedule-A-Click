@@ -14,6 +14,8 @@ struct TimerView: View {
     @EnvironmentObject var permissionStore: PermissionStore
 
     @State var showSettings = false
+    @State var timerMode: TimerMode = .countdown
+    @FocusState private var focusedField: Bool?
 
     @AppStorage("Hours") var hours: String = "0"
     @AppStorage("Minutes") var minutes: String = "0"
@@ -34,13 +36,40 @@ struct TimerView: View {
                 startButton
             }
             .padding()
+            .zIndex(0)
 
             settingsOverlay
+                .zIndex(1)
+            
             permissionOverlay
+                .zIndex(2)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.default, value: timerStore.isRunning)
         .animation(.default, value: settingsStore.timerMode)
+        .onAppear {
+            // Set schedule time to current time + 1 minute on first open
+            if !timerStore.isRunning && settingsStore.timerMode == .schedule {
+                setScheduleToOneMinuteAhead()
+            }
+        }
+        .onDisappear {
+            showSettings = false
+            focusedField = nil
+        }
+        .onChange(of: settingsStore.timerMode) { oldValue, newValue in
+            // Set schedule time when switching from countdown to schedule
+            focusedField = nil
+            if !timerStore.isRunning && oldValue == .countdown && newValue == .schedule {
+                setScheduleToOneMinuteAhead()
+            }
+        }
+        .onChange(of: showSettings) { _, newValue in
+            // Clear focus when opening settings
+            if newValue {
+                focusedField = nil
+            }
+        }
     }
     
     @ViewBuilder
@@ -60,13 +89,19 @@ struct TimerView: View {
 
     @ViewBuilder
     var modePicker: some View {
-        Picker("Mode", selection: settingsStore.$timerMode) {
+        Picker("Mode", selection: $timerMode) {
             ForEach(TimerMode.allCases, id: \.self) { mode in
                 Text(mode.rawValue).tag(mode)
             }
         }
         .pickerStyle(.segmented)
         .disabled(timerStore.isRunning)
+        .onAppear {
+            timerMode = settingsStore.timerMode
+        }
+        .onChange(of: timerMode) { _, newValue in
+            settingsStore.timerMode = newValue
+        }
     }
 
     @ViewBuilder
@@ -94,6 +129,7 @@ struct TimerView: View {
                         .frame(width: 50)
                         .multilineTextAlignment(.center)
                         .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: true)
                         .onChange(of: binding.wrappedValue) { _, newValue in
                             validateAndClamp(binding, newValue: newValue, max: maxValue)
                         }
@@ -131,6 +167,7 @@ struct TimerView: View {
                     .frame(width: 45)
                     .multilineTextAlignment(.center)
                     .textFieldStyle(.roundedBorder)
+                    .focused($focusedField, equals: true)
                     .onChange(of: scheduleHour) { _, newValue in
                         validateTimeField($scheduleHour, newValue: newValue, max: settingsStore.use12HourFormat ? 12 : 23, min: settingsStore.use12HourFormat ? 1 : 0)
                     }
@@ -143,6 +180,7 @@ struct TimerView: View {
                     .frame(width: 45)
                     .multilineTextAlignment(.center)
                     .textFieldStyle(.roundedBorder)
+                    .focused($focusedField, equals: true)
                     .onChange(of: scheduleMinute) { _, newValue in
                         validateTimeField($scheduleMinute, newValue: newValue, max: 59, min: 0)
                     }
@@ -155,6 +193,7 @@ struct TimerView: View {
                     .frame(width: 45)
                     .multilineTextAlignment(.center)
                     .textFieldStyle(.roundedBorder)
+                    .focused($focusedField, equals: true)
                     .onChange(of: scheduleSecond) { _, newValue in
                         validateTimeField($scheduleSecond, newValue: newValue, max: 59, min: 0)
                     }
@@ -217,16 +256,59 @@ struct TimerView: View {
             return hour == 12 ? 12 : hour + 12
         }
     }
+
+    /// Sets the schedule time fields to current time + 1 minute
+    private func setScheduleToOneMinuteAhead() {
+        let calendar = Calendar.current
+        let oneMinuteFromNow = Date().addingTimeInterval(60)
+        let components = calendar.dateComponents([.hour, .minute, .second], from: oneMinuteFromNow)
+
+        guard let hour24 = components.hour,
+              let minute = components.minute,
+              let second = components.second else { return }
+
+        // Set the fields based on 12 or 24 hour format
+        if settingsStore.use12HourFormat {
+            if hour24 == 0 {
+                scheduleHour = "12"
+                isAM = true
+            } else if hour24 < 12 {
+                scheduleHour = String(hour24)
+                isAM = true
+            } else if hour24 == 12 {
+                scheduleHour = "12"
+                isAM = false
+            } else {
+                scheduleHour = String(hour24 - 12)
+                isAM = false
+            }
+        } else {
+            scheduleHour = String(format: "%02d", hour24)
+        }
+
+        scheduleMinute = String(format: "%02d", minute)
+        scheduleSecond = String(format: "%02d", second)
+    }
     
     @ViewBuilder
     var countdown: some View {
         if timerStore.isRunning {
-            Text("Clicking in \(timerStore.timeRemaining)...")
-                .monospacedDigit()
-                .font(.title3)
-                .fontWeight(.medium)
-                .contentTransition(.numericText())
-                .animation(.default, value: timerStore.timeRemaining)
+            VStack(spacing: 8) {
+                // Show scheduled time in schedule mode
+                if settingsStore.timerMode == .schedule {
+                    Text("Click scheduled at \(timerStore.formattedScheduledTime(use12Hour: settingsStore.use12HourFormat))")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Show countdown for both modes
+                Text("Clicking in \(timerStore.formattedTimeRemaining)...")
+                    .monospacedDigit()
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .contentTransition(.numericText())
+                    .animation(.default, value: timerStore.timeRemaining)
+            }
         }
     }
     
@@ -235,6 +317,7 @@ struct TimerView: View {
             if timerStore.isRunning {
                 timerStore.cancel()
             } else {
+                focusedField = nil
                 switch settingsStore.timerMode {
                 case .countdown:
                     timerStore.start(
@@ -272,7 +355,10 @@ struct TimerView: View {
     
     @ViewBuilder
     var settingsOverlay: some View {
-        let transition = PushTransition.push(from: .bottom).combined(with: MoveTransition.move(edge: .bottom))
+        let transition = AsymmetricTransition(
+            insertion: PushTransition.push(from: .bottom),
+            removal: MoveTransition.move(edge: .bottom)
+        )
         if showSettings {
             SettingsView(isPresented: $showSettings)
                 .transition(transition)
