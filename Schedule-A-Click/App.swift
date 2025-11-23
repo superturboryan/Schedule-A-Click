@@ -37,14 +37,18 @@ struct Schedule_A_ClickApp: App {
     
     @ViewBuilder
     var menuBarLabel: some View {
-        if !permissionStore.isTrusted {
-            Text("􀎡􀝰")
-        } else if clickTimerStore.isRunning && settingsStore.showTimeInMenuBar {
-            Text("􀝱 \(clickTimerStore.formattedTimeRemaining)")
-        } else if clickTimerStore.isRunning {
-            Text("􀐱􀝱")
-        } else {
-            Text("􀐱􀝰")
+        HStack {
+            if !permissionStore.isTrusted {
+                Text("􀎡􀝰")
+            } else {
+                Image(.handTimerSymbol)
+                    .resizable()
+                    .scaledToFit()
+            }
+            
+            if clickTimerStore.isRunning && settingsStore.showTimeInMenuBar {
+                Text("\(clickTimerStore.formattedTimeRemaining)")
+            }
         }
     }
 }
