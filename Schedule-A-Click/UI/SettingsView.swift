@@ -17,20 +17,40 @@ struct SettingsView: View {
     @Binding var isPresented: Bool
     
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 16) {
             Text("Settings")
                 .font(.title3)
                 .fontWeight(.semibold)
-            
-            VStack(alignment: .leading) {
+
+            VStack(alignment: .leading, spacing: 10) {
                 startOnLoginToggle
                 Toggle(isOn: store.$showTimeInMenuBar) {
                     Text("Show Time in Menu Bar")
                 }
+                Toggle(isOn: store.$playSound) {
+                    Text("Play Sound on Click")
+                }
+                Toggle(isOn: store.$use12HourFormat) {
+                    Text("Use 12-Hour Format")
+                }
             }
-            
+
             Divider()
-            
+
+            VStack(spacing: 8) {
+                Text("Click Type")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Picker("Click Type", selection: store.$clickType) {
+                    ForEach(ClickType.allCases, id: \.self) { type in
+                        Text(type.rawValue).tag(type)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Divider()
+
             Button("Rate App") {
                 AppStore.requestReview(in: NSViewController())
                 Task {

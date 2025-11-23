@@ -30,8 +30,8 @@ struct Schedule_A_ClickApp: App {
             .environmentObject(settingsStore)
             .environmentObject(permissionStore)
             .onChange(of: permissionStore.isTrusted, initial: true) { _, newValue in
-                settingsStore.windowWidth = newValue ? 220 : 300
-                settingsStore.windowHeight = newValue ? 180 : 280
+                settingsStore.windowWidth = newValue ? 320 : 380
+                settingsStore.windowHeight = newValue ? 280 : 380
             }
     }
     
